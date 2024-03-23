@@ -233,7 +233,7 @@ int main() {
 
     //image_0 = ReadImage(filename, width, height);
     // Profile ReadImage function
-    auto image_0 = profileFunction("ReadImage", ReadImage, filename, std::ref(width), std::ref(height));
+    auto image_0 = profileFunction("ReadImage", ReadImage, filename.c_str(), std::ref(width), std::ref(height));
 
     // Check if the image was successfully loaded
     if (image_0.empty()) {
@@ -257,9 +257,9 @@ int main() {
     std::cout << "Total pixels in resized image: " << newWidth * newHeight << std::endl;
 
     std::string resizeFilename = workspaceFolder + "/outputs/resize_image.png";
-    profileWriteImage("WriteImage (Resize)", WriteImage, resizeFilename, resizedImage, newWidth, newHeight);
+    profileWriteImage("WriteImage (Resize)", WriteImage, resizeFilename.c_str(), resizedImage, newWidth, newHeight);
 
-    auto resizedImageRead = profileFunction("ReadImage", ReadImage, resizeFilename, std::ref(newWidth), std::ref(newHeight));
+    auto resizedImageRead = profileFunction("ReadImage", ReadImage, resizeFilename.c_str(), std::ref(newWidth), std::ref(newHeight));
 
 
     // Convert the image to grayscale
@@ -271,7 +271,7 @@ int main() {
     // Save the grayscale image
     std::string grayFilename = workspaceFolder + "/outputs/grayscale_image.png";
     //WriteImage(grayFilename, grayScaleImage, newWidth, newHeight);
-    profileWriteImage("WriteImage (Grayscale)", WriteImage, grayFilename, grayScaleImage, newWidth, newHeight);
+    profileWriteImage("WriteImage (Grayscale)", WriteImage, grayFilename.c_str(), grayScaleImage, newWidth, newHeight);
     
     
     // Apply a 5x5 filter to the grayscale image
@@ -281,7 +281,7 @@ int main() {
     // Save the filtered image
     std::string filteredFilename = workspaceFolder + "/outputs/filtered_image.png";
     //WriteImage(filteredFilename, filteredImage, newWidth, newHeight);
-    profileWriteImage("WriteImage (Grayscale)", WriteImage, filteredFilename, filteredImage, newWidth, newHeight);
+    profileWriteImage("WriteImage (Grayscale)", WriteImage, filteredFilename.c_str(), filteredImage, newWidth, newHeight);
     
     return 0;
 }
