@@ -145,7 +145,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\Downloads\hello_world_open_cl.c" />
-    <ClCompile Include="..\..\..\MPP\lodepng.cpp" />
+    <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="Phase3.cpp" />
     <ClCompile Include="Task1.cpp" />
     <ClCompile Include="Task2.cpp" />
@@ -156,7 +156,7 @@
     <Image Include="..\..\..\Downloads\image_1.png" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\MPP\lodepng.h" />
+    <ClInclude Include="\include\lodepng.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

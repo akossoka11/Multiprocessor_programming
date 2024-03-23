@@ -1,4 +1,5 @@
-#include "lodepng.h"
+#include "..\include\lodepng.h"
+#include <functional>
 #include <iostream>
 #include <vector>
 #include <filesystem>
