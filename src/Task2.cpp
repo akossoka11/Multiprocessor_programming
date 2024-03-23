@@ -1,9 +1,10 @@
-#include "..\include\lodepng.h"
+#include "../include/lodepng.h"
 #include <functional>
 #include <iostream>
 #include <vector>
 #include <filesystem>
 #include <chrono>
+#include <unistd.h> // For getcwd() function
 
 std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& width, unsigned& height) {
     std::vector<unsigned char> image;
@@ -208,9 +209,23 @@ void profileWriteImage(const std::string& functionName, Func&& func, Args&&... a
     std::cout << "Execution time of " << functionName << ": " << duration.count() << " ms\n";
 }
 
+std::string getCurrentDirectory() {
+    char buffer[FILENAME_MAX];
+    if (getcwd(buffer, FILENAME_MAX) != NULL) {
+        return std::string(buffer);
+    } else {
+        std::cerr << "Error getting current directory." << std::endl;
+        exit(1);
+    }
+}
+
 int main() {
-    // Construct the full path to the image file
-    std::string filename = "C:\\Users\\akoss\\MPP\\image_1.png";
+    std::string workspaceFolder = getCurrentDirectory();
+    std::cout << "Workspace folder: " << workspaceFolder << std::endl;
+
+    // Construct file paths using the workspace folder
+    std::string filename = workspaceFolder + "/images/im0.png";
+    std::cout << "Trying to find image from " << filename << std::endl;
 
     // Load the PNG image using ReadImage function
     //std::vector<unsigned char> image_0; // This will store the raw pixel data
@@ -223,6 +238,7 @@ int main() {
     // Check if the image was successfully loaded
     if (image_0.empty()) {
         // Handle the error as needed
+        std::cout << "Failed to load image." << std::endl;
         return 1;
     }
 
@@ -240,9 +256,10 @@ int main() {
     std::cout << "Resized Image dimensions: " << newWidth << "x" << newHeight << std::endl;
     std::cout << "Total pixels in resized image: " << newWidth * newHeight << std::endl;
 
-    profileWriteImage("WriteImage (Resize)", WriteImage, "C:\\Users\\akoss\\MPP\\resize_image.png", resizedImage, newWidth, newHeight);
+    std::string resizeFilename = workspaceFolder + "/outputs/resize_image.png";
+    profileWriteImage("WriteImage (Resize)", WriteImage, resizeFilename, resizedImage, newWidth, newHeight);
 
-    auto resizedImageRead = profileFunction("ReadImage", ReadImage, "C:\\Users\\akoss\\MPP\\resize_image.png", std::ref(newWidth), std::ref(newHeight));
+    auto resizedImageRead = profileFunction("ReadImage", ReadImage, resizeFilename, std::ref(newWidth), std::ref(newHeight));
 
 
     // Convert the image to grayscale
@@ -252,8 +269,9 @@ int main() {
 
 
     // Save the grayscale image
-    //WriteImage("C:\\Users\\akoss\\MPP\\grayscale_image.png", grayScaleImage, newWidth, newHeight);
-    profileWriteImage("WriteImage (Grayscale)", WriteImage, "C:\\Users\\akoss\\MPP\\grayscale_image1.png", grayScaleImage, newWidth, newHeight);
+    std::string grayFilename = workspaceFolder + "/outputs/grayscale_image.png";
+    //WriteImage(grayFilename, grayScaleImage, newWidth, newHeight);
+    profileWriteImage("WriteImage (Grayscale)", WriteImage, grayFilename, grayScaleImage, newWidth, newHeight);
     
     
     // Apply a 5x5 filter to the grayscale image
@@ -261,8 +279,9 @@ int main() {
     auto filteredImage = profileFunction("ApplyFilter", ApplyFilter, grayScaleImage, std::ref(newWidth), std::ref(newHeight));
     
     // Save the filtered image
-    //WriteImage("C:\\Users\\akoss\\MPP\\filtered_image.png", filteredImage, newWidth, newHeight);
-    profileWriteImage("WriteImage (Grayscale)", WriteImage, "C:\\Users\\akoss\\MPP\\filtered_image1.png", filteredImage, newWidth, newHeight);
+    std::string filteredFilename = workspaceFolder + "/outputs/filtered_image.png";
+    //WriteImage(filteredFilename, filteredImage, newWidth, newHeight);
+    profileWriteImage("WriteImage (Grayscale)", WriteImage, filteredFilename, filteredImage, newWidth, newHeight);
     
     return 0;
 }

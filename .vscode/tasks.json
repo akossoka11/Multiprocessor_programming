@@ -3,17 +3,18 @@
         {
             "type": "cppbuild",
             "label": "C/C++: gcc.exe build active file",
-            "command": "C:/MinGW/bin/gcc.exe",
+            "command": "gcc",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
                 "${file}",
+                "${fileDirname}/lodepng.cpp",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
-                ""
+                "-lstdc++"
             ],
             "options": {
-                "cwd": "C:/MinGW/bin"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$gcc"
