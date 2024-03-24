@@ -1,6 +1,12 @@
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <sstream>
 #include <vector>
 #include <cmath>
+#include <limits>
+#include <chrono>
+#include <unistd.h> // For getcwd() function
 
 // Function to calculate ZNCC for a given window
 float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
@@ -64,6 +70,61 @@ void depthEstimation(const std::vector<std::vector<int>>& leftImage, const std::
     }
 }
 
+std::string getCurrentDirectory() {
+    char buffer[FILENAME_MAX];
+    if (getcwd(buffer, FILENAME_MAX) != NULL) {
+        return std::string(buffer);
+    } else {
+        std::cout << "Error getting current directory." << std::endl;
+        exit(1);
+    }
+}
+
+std::string extractValue(const std::string& line, const std::string& key) {
+    size_t pos = line.find(key);
+    if (pos != std::string::npos) {
+        pos = line.find("="); // Find the position of '='
+        if (pos != std::string::npos) {
+            return line.substr(pos + 1); // Extract substring after '='
+        }
+    }
+    return ""; // Return empty string if key not found or '=' not found
+}
+
+int searchFileForKeyValuePair(const std::string& keyToFind) {
+    std::ifstream calibFile("calib.txt");
+    std::string line;
+    int foundValue = -1; // Default value if key is not found
+
+    if (calibFile.is_open()) {
+        while (std::getline(calibFile, line)) {
+            std::cout << "Debug: Reading line: " << line << std::endl;
+            std::string value = extractValue(line, keyToFind);
+            if (!value.empty()) {
+                foundValue = std::stoi(value);
+                break;
+            }
+        }
+        calibFile.close();
+    } else {
+        std::cout << "Unable to open calib.txt." << std::endl;
+        exit(1);
+    }
+
+    return foundValue;
+}
+
+int findValueForKey(const std::string& keyToFind) {
+    int foundValue = searchFileForKeyValuePair(keyToFind);
+
+    if (foundValue == -1) {
+        std::cout << "Key '" << keyToFind << "' not found in calib.txt." << std::endl;
+        exit(1);
+    }
+
+    return foundValue;
+}
+
 int main() {
     // Example usage:
     // Assume leftImage, rightImage, and disparityMap are 2D vectors representing grayscale images
@@ -71,11 +132,33 @@ int main() {
     // maxDisp is the maximum disparity value (ndisp in calib.txt)
     // winSize is the window size, start with 9x9
 
-    std::vector<std::vector<int>> leftImage = { // };  // Populate with your grayscale left image data
-    std::vector<std::vector<int>> rightImage = { // }; // Populate with your grayscale right image data
-    int maxDisp = 260;  // Example value, replace with your actual max disparity
-    int winSize = 9;    // Example value, replace with your actual window size
-    //std::string filename = "C:\\Users\\akoss\\MPP\\image_0.png";
+    std::vector<std::vector<int>> leftImage = {
+        {255, 255, 255, 0, 0},
+        {255, 255, 255, 0, 0},
+        {255, 255, 255, 0, 0},
+        {255, 255, 255, 0, 0},
+        {255, 255, 255, 0, 0}
+    };  
+
+    std::vector<std::vector<int>> rightImage = {
+        {0, 0, 255, 255, 255},
+        {0, 0, 255, 255, 255},
+        {0, 0, 255, 255, 255},
+        {0, 0, 255, 255, 255},
+        {0, 0, 255, 255, 255}
+    };
+
+    std::string maxDispKey = "ndisp";
+    int maxDisp = findValueForKey(maxDispKey);
+
+    std::cout << "maxDisp: " << maxDisp << std::endl;
+    int winSize = 9;
+
+    std::string workspaceFolder = getCurrentDirectory();
+    std::cout << "Workspace folder: " << workspaceFolder << std::endl;
+
+    // Construct file paths using the workspace folder
+    std::string filename = workspaceFolder + "/images/im0.png";
     // Initialize disparityMap with zeros
     std::vector<std::vector<int>> disparityMap(leftImage.size(), std::vector<int>(leftImage[0].size(), 0));
 
