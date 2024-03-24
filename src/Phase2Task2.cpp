@@ -196,7 +196,7 @@ int main() {
     std::cout << "Resized Image dimensions: " << newWidth << "x" << newHeight << std::endl;
     std::cout << "Total pixels in resized image: " << newWidth * newHeight << std::endl;
 
-    std::string resizeFilename = workspaceFolder + "/images/resize_image.png";
+    std::string resizeFilename = workspaceFolder + "/outputs/task2_outputs/resize_image.png";
     profileWriteImage("WriteImage (Resize)", WriteImage, resizeFilename.c_str(), resizedImage, newWidth, newHeight);
 
     auto resizedImageRead = profileFunction("ReadImage", ReadImage, resizeFilename.c_str(), std::ref(newWidth), std::ref(newHeight));
@@ -209,7 +209,7 @@ int main() {
 
 
     // Save the grayscale image
-    std::string grayFilename = workspaceFolder + "/images/grayscale_image.png";
+    std::string grayFilename = workspaceFolder + "/outputs/task2_outputs/grayscale_image.png";
     //WriteImage(grayFilename, grayScaleImage, newWidth, newHeight);
     profileWriteImage("WriteImage (Grayscale)", WriteImage, grayFilename.c_str(), grayScaleImage, newWidth, newHeight);
     
@@ -219,7 +219,7 @@ int main() {
     auto filteredImage = profileFunction("ApplyFilter", ApplyFilter, grayScaleImage, std::ref(newWidth), std::ref(newHeight));
     
     // Save the filtered image
-    std::string filteredFilename = workspaceFolder + "/images/filtered_image.png";
+    std::string filteredFilename = workspaceFolder + "/outputs/task2_outputs/filtered_image.png";
     //WriteImage(filteredFilename, filteredImage, newWidth, newHeight);
     profileWriteImage("WriteImage (Grayscale)", WriteImage, filteredFilename.c_str(), filteredImage, newWidth, newHeight);
     
