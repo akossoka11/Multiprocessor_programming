@@ -7,9 +7,6 @@
 #include <sstream>
 #include <vector>
 #include <cmath>
-#include <limits>
-#include <chrono>
-#include <unistd.h> // For getcwd() function
 
 // Function to calculate ZNCC for a given window
 float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
