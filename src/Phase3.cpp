@@ -1,4 +1,3 @@
-/*
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -64,8 +63,7 @@ void depthEstimation(const std::vector<std::vector<int>>& leftImage, const std::
         }
     }
 }
-*/
-/*
+
 int main() {
     // Example usage:
     // Assume leftImage, rightImage, and disparityMap are 2D vectors representing grayscale images
@@ -86,4 +84,4 @@ int main() {
 
     // Now disparityMap contains the estimated disparities for each pixel
     return 0;
-}*/
+}
