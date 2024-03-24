@@ -1,49 +1,11 @@
 #include "../include/lodepng.h"
+#include "../include/image_functions.h"
 #include <functional>
 #include <iostream>
 #include <vector>
 #include <filesystem>
 #include <chrono>
 #include <unistd.h> // For getcwd() function
-
-std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& width, unsigned& height) {
-    std::vector<unsigned char> image;
-
-    unsigned error = lodepng::decode(image, width, height, filename.c_str());
-
-    if (error) {
-        std::cerr << "Error while decoding PNG: " << lodepng_error_text(error) << std::endl;
-        // Handle the error as needed, e.g., throw an exception or return an empty vector
-        // For simplicity, this example just prints the error and returns an empty vector
-        return std::vector<unsigned char>();
-    }
-
-    return image;
-}
-
-std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputImage, unsigned originalWidth, unsigned originalHeight) {
-    // Calculate new dimensions for the resized image (1/4 of the original size)
-    unsigned newWidth = originalWidth / 4;
-    unsigned newHeight = originalHeight / 4;
-
-    // Create a vector to store the resized image
-    std::vector<unsigned char> resizedImage(newWidth * newHeight * 4, 255); // Initialize to white
-
-    // Resize the image by taking pixels from every fourth row and column
-    for (unsigned y = 0; y < newHeight; ++y) {
-        for (unsigned x = 0; x < newWidth; ++x) {
-            size_t originalIndex = ((y * 4) * originalWidth + (x * 4)) * 4;
-            size_t resizedIndex = (y * newWidth + x) * 4;
-
-            // Copy the RGBA values
-            for (int i = 0; i < 4; ++i) {
-                resizedImage[resizedIndex + i] = inputImage[originalIndex + i];
-            }
-        }
-    }
-
-    return resizedImage;
-}
 
 /*
 std::vector<unsigned char> GrayScaleImage(const std::vector<unsigned char>& inputImage, unsigned width, unsigned height) {
@@ -89,16 +51,6 @@ std::vector<unsigned char> ConvertToGreyscale(const std::vector<unsigned char>& 
     }
 
     return greyscaleImage;
-}
-
-// Function to write the output image
-void WriteImage(const char* filename, const std::vector<unsigned char>& outputImage, unsigned width, unsigned height) {
-    unsigned error = lodepng::encode(filename, outputImage, width, height);
-
-    if (error) {
-        std::cerr << "Error while encoding PNG: " << lodepng_error_text(error) << std::endl;
-        exit(1);
-    }
 }
 
 std::vector<unsigned char> ApplyFilter(const std::vector<unsigned char>& inputImage, unsigned width, unsigned height) {
@@ -178,8 +130,6 @@ std::vector<unsigned char> ApplyFilter(const std::vector<unsigned char>& inputIm
     return filteredImage;
 }*/
 
-
-
 // Function to profile the execution time of a given function and display the result
 template <typename Func, typename... Args>
 auto profileFunction(const std::string& functionName, Func&& func, Args&&... args) {
@@ -207,16 +157,6 @@ void profileWriteImage(const std::string& functionName, Func&& func, Args&&... a
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     std::cout << "Execution time of " << functionName << ": " << duration.count() << " ms\n";
-}
-
-std::string getCurrentDirectory() {
-    char buffer[FILENAME_MAX];
-    if (getcwd(buffer, FILENAME_MAX) != NULL) {
-        return std::string(buffer);
-    } else {
-        std::cerr << "Error getting current directory." << std::endl;
-        exit(1);
-    }
 }
 
 int main() {
@@ -256,7 +196,7 @@ int main() {
     std::cout << "Resized Image dimensions: " << newWidth << "x" << newHeight << std::endl;
     std::cout << "Total pixels in resized image: " << newWidth * newHeight << std::endl;
 
-    std::string resizeFilename = workspaceFolder + "/outputs/task2_outputs/resize_image.png";
+    std::string resizeFilename = workspaceFolder + "/images/resize_image.png";
     profileWriteImage("WriteImage (Resize)", WriteImage, resizeFilename.c_str(), resizedImage, newWidth, newHeight);
 
     auto resizedImageRead = profileFunction("ReadImage", ReadImage, resizeFilename.c_str(), std::ref(newWidth), std::ref(newHeight));
@@ -269,7 +209,7 @@ int main() {
 
 
     // Save the grayscale image
-    std::string grayFilename = workspaceFolder + "/outputs/task2_outputs/grayscale_image.png";
+    std::string grayFilename = workspaceFolder + "/images/grayscale_image.png";
     //WriteImage(grayFilename, grayScaleImage, newWidth, newHeight);
     profileWriteImage("WriteImage (Grayscale)", WriteImage, grayFilename.c_str(), grayScaleImage, newWidth, newHeight);
     
@@ -279,7 +219,7 @@ int main() {
     auto filteredImage = profileFunction("ApplyFilter", ApplyFilter, grayScaleImage, std::ref(newWidth), std::ref(newHeight));
     
     // Save the filtered image
-    std::string filteredFilename = workspaceFolder + "/outputs/task2_outputs/filtered_image.png";
+    std::string filteredFilename = workspaceFolder + "/images/filtered_image.png";
     //WriteImage(filteredFilename, filteredImage, newWidth, newHeight);
     profileWriteImage("WriteImage (Grayscale)", WriteImage, filteredFilename.c_str(), filteredImage, newWidth, newHeight);
     

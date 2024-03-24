@@ -10,3 +10,4 @@ vmin=28
 vmax=229
 dyavg=0
 dymax=0
+winSize=9

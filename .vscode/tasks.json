@@ -9,6 +9,7 @@
                 "-g",
                 "${file}",
                 "${fileDirname}/lodepng.cpp",
+                "${fileDirname}/image_functions.cpp",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
                 "-lstdc++"
