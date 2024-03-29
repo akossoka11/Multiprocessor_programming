@@ -43,7 +43,9 @@ float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::v
 void depthEstimation(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
     int maxDisp, int winSize, std::vector<std::vector<int>>& disparityMap) {
     int height = leftImage.size();
+    // std::cout << "DEBUG image height: " << height << std::endl;
     int width = leftImage[0].size();
+    // std::cout << "DEBUG image width: " << width << std::endl;
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -115,16 +117,6 @@ int findValueForKey(const std::string& keyToFind) {
     return foundValue;
 }
 
-std::vector<std::vector<int>> createMatrix(int rows, int cols) {
-    return std::vector<std::vector<int>>(rows, std::vector<int>(cols, 0));
-}
-
-std::pair<std::vector<std::vector<int>>, std::vector<std::vector<int>>> createImages(int winSize) {
-    std::vector<std::vector<int>> leftImage = createMatrix(winSize, winSize);
-    std::vector<std::vector<int>> rightImage = createMatrix(winSize, winSize);
-    return std::make_pair(leftImage, rightImage);
-}
-
 void printMatrix(const std::vector<std::vector<int>>& matrix) {
     // For debugging purposes
     for (const auto& row : matrix) {
@@ -164,6 +156,21 @@ void profileWriteImage(const std::string& functionName, Func&& func, Args&&... a
     std::cout << "Execution time of " << functionName << ": " << duration.count() << " ms\n";
 }
 
+std::vector<std::vector<int>> vectorToMatrix(const std::vector<unsigned char>& image, int width, int height) {
+    std::vector<std::vector<int>> matrix(height, std::vector<int>(width, 0));
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Calculate the index in the 1D vector corresponding to the current pixel
+            int index = y * width + x;
+            // Assign the pixel value to the corresponding position in the matrix
+            matrix[y][x] = static_cast<int>(image[index]);
+        }
+    }
+
+    return matrix;
+}
+
 int main() {
     // Example usage:
     // Assume leftImage, rightImage, and disparityMap are 2D vectors representing grayscale images
@@ -175,40 +182,46 @@ int main() {
     // std::cout << "DEBUG Workspace folder: " << workspaceFolder << std::endl;
 
     // Construct file paths using the workspace folder
-    std::string filename = workspaceFolder + "/images/grayscale_image.png";
-    std::cout << "Trying to find image from " << filename << std::endl;
+    // Used phase2task2 converter to construct left and right grayscale images from im0 and im1 respectively, 
+    // here we just fetch them from their location.
+    std::string leftFilename = workspaceFolder + "/images/left_grayscale.png";
+    std::string rightFilename = workspaceFolder + "/images/right_grayscale.png";
+    // std::cout << "DEBUG Trying to find image from " << leftFilename << std::endl;
 
     // Load the PNG image using ReadImage function
-    //std::vector<unsigned char> image_0; // This will store the raw pixel data
     unsigned width, height;  // Define width and height
-    auto gray_image = profileFunction("ReadImage", ReadImage, filename.c_str(), std::ref(width), std::ref(height));
+    auto leftGrayImage = profileFunction("ReadImage", ReadImage, leftFilename.c_str(), std::ref(width), std::ref(height));
+    auto rightGrayImage = profileFunction("ReadImage", ReadImage, rightFilename.c_str(), std::ref(width), std::ref(height));
 
     // Check if the image was successfully loaded
-    if (gray_image.empty()) {
+    if (leftGrayImage.empty() || rightGrayImage.empty()) {
         // Handle the error as needed
-        std::cout << "Failed to load image." << std::endl;
+        std::cout << "Failed to load image(s)." << std::endl;
         return 1;
     }
 
     std::string maxDispKey = "ndisp";
-    int maxDisp = findValueForKey(maxDispKey);
+    int origMaxDisp = findValueForKey(maxDispKey);
+    int maxDisp = origMaxDisp / 4;  // image was downscaled with factor 4
     // std::cout << "DEBUG maxDisp: " << maxDisp << std::endl;
 
+    // winSize can be edited by changing the value from calib.txt
     std::string winSizeKey = "winSize";
     int winSize = findValueForKey(winSizeKey);
     // std::cout << "DEBUG winSize: " << winSize << std::endl;
 
-    std::pair<std::vector<std::vector<int>>, std::vector<std::vector<int>>> images = createImages(winSize);
-    std::vector<std::vector<int>> leftImage = images.first;
-    std::vector<std::vector<int>> rightImage = images.second;
-    std::cout << "DEBUG leftImage:\n" << std::endl;
-    printMatrix(leftImage);
+    std::string leftImagePath = workspaceFolder + "/images/left_grayscale.png";
+    auto leftImage = profileFunction("ReadImage", ReadImage, leftImagePath.c_str(), std::ref(width), std::ref(height));
+    auto leftImageMatrix = vectorToMatrix(leftImage, std::ref(width), std::ref(height));
+    std::string rightImagePath = workspaceFolder + "/images/right_grayscale.png";
+    auto rightImage = profileFunction("ReadImage", ReadImage, rightImagePath.c_str(), std::ref(width), std::ref(height));
+    auto rightImageMatrix = vectorToMatrix(rightImage, std::ref(width), std::ref(height));
 
     // Initialize disparityMap with zeros
-    std::vector<std::vector<int>> disparityMap(leftImage.size(), std::vector<int>(leftImage[0].size(), 0));
+    std::vector<std::vector<int>> disparityMap(leftImageMatrix.size(), std::vector<int>(leftImageMatrix[0].size(), 0));
 
     // Call the depth estimation function
-    depthEstimation(leftImage, rightImage, maxDisp, winSize, disparityMap);
+    depthEstimation(leftImageMatrix, rightImageMatrix, maxDisp, winSize, disparityMap);
 
     // Now disparityMap contains the estimated disparities for each pixel
     return 0;
