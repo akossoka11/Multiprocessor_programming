@@ -12,14 +12,14 @@
 
 // Function to calculate ZNCC for a given window
 float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
-    int x, int y, int d, int winSize) {
+    size_t x, size_t y, int d, size_t winSize) {
     float B = static_cast<float>(winSize);
     float sumLeft = 0, sumRight = 0, sumLeftSquared = 0, sumRightSquared = 0, sumCross = 0;
 
-    for (int i = 0; i < winSize; ++i) {
-        for (int j = 0; j < winSize; ++j) {
-            float leftPixel = static_cast<float>(leftImage[static_cast<size_t>(y + i)][static_cast<size_t>(x + j)]);
-            float rightPixel = static_cast<float>(rightImage[static_cast<size_t>(y + i)][static_cast<size_t>(x + j - d)]);
+    for (size_t i = 0; i < winSize; ++i) {
+        for (size_t j = 0; j < winSize; ++j) {
+            float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
+            float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
 
             sumLeft += leftPixel;
             sumRight += rightPixel;
@@ -44,22 +44,19 @@ float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::v
 std::vector<std::vector<int>> depthEstimation(
     const std::vector<std::vector<int>>& image0, 
     const std::vector<std::vector<int>>& image1,
-    size_t width, size_t height, int maxDisp, int winSize) {
+    size_t width, size_t height, int maxDisp, size_t winSize) {
 
     std::cout << "Depth estimation in progress." << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
+    std::cout << "DEBUG Given height x width: " << height << " x " << width << std::endl;
+
     std::vector<std::vector<int>> disparityMap(height, std::vector<int>(width, 0));
     std::cout << "DEBUG disparityMap height: " << disparityMap.size() << " and width: " << disparityMap[0].size() << std::endl;
 
-    int h = static_cast<int>(disparityMap.size());
-    int w = static_cast<int>(disparityMap[0].size());
-
-    std::cout << "DEBUG h x w: " << h << " x " << w << std::endl;
-
-    for (int y = 0; y < (h - winSize); ++y) {
-        for (int x = 0; x < (w - winSize); ++x) {
+    for (size_t y = 0; y < (height - winSize); ++y) {
+        for (size_t x = 0; x < (width - winSize); ++x) {
             float currentMaxSum = -std::numeric_limits<float>::infinity();
             int bestDisparity = 0;
 
@@ -213,11 +210,15 @@ void printMatrix(const std::vector<std::vector<int>>& matrix) {
     }
 }
 
-void printVector(const std::vector<unsigned char>& vec) {
-    for (unsigned char value : vec) {
-        std::cout << static_cast<int>(value) << " " << std::endl;
+void printVector(const std::vector<unsigned char>& vec, size_t width, size_t height) {
+    // For debugging purposes
+    for (size_t i = 0; i < height; ++i) {
+        for (size_t j = 0; j < width; ++j) {
+            size_t index = i * width + j;
+            std::cout << static_cast<int>(vec[index]) << " ";
+        }
+        std::cout << std::endl;
     }
-    // std::cout << std::endl;
 }
 
 // Function to profile the execution time of a given function and display the result
@@ -306,7 +307,7 @@ int main() {
 
     // winSize can be edited by changing the value from calib.txt
     std::string winSizeKey = "winSize";
-    int winSize = findValueForKey(winSizeKey);
+    size_t winSize = findValueForKey(winSizeKey);
 
     std::string leftImagePath = workspaceFolder + "/images/left_grayscale.png";
     auto leftImageMatrix = vectorToMatrix(leftGrayImage, std::ref(width), std::ref(height));
@@ -322,15 +323,16 @@ int main() {
     int maxDisparityValue = maxDisp * 4;  // Multiply by 4 to compensate for downsampling
     for (auto& row : leftToRightDisparityMap) {
         for (auto& pixel : row) {
-            pixel = static_cast<int>(static_cast<float>(pixel) / static_cast<float>(maxDisparityValue) * 255);
+            pixel = static_cast<int>(pixel / maxDisparityValue * 255);
         }
     }
 
     std::vector<unsigned char> disparityMapVector = matrixToVector(leftToRightDisparityMap);
 
     std::cout << "Writing the disparityMap to a file." << std::endl;
-    std::cout << "DEBUG width x height: " << height << " x " << width << std::endl;
+    std::cout << "DEBUG height x width: " << height << " x " << width << std::endl;
     std::cout << "DEBUG vector size: " << disparityMapVector.size() << std::endl;
+    // printVector(disparityMapVector, std::ref(width), std::ref(height));
     std::string depthMapFilename = workspaceFolder + "/outputs/task3_outputs/depthmap.png";
     profileWriteImage("WriteImage (disparityMap)", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
                       std::ref(width), std::ref(height));
