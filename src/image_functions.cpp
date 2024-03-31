@@ -23,7 +23,7 @@ std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& widt
     unsigned error = lodepng::decode(image, width, height, filename.c_str());
 
     if (error) {
-        std::cerr << "Error while decoding PNG: " << lodepng_error_text(error) << std::endl;
+        std::cout << "Error while decoding PNG: " << lodepng_error_text(error) << std::endl;
         // Handle the error as needed, e.g., throw an exception or return an empty vector
         // For simplicity, this example just prints the error and returns an empty vector
         return std::vector<unsigned char>();
@@ -58,10 +58,12 @@ std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputIm
 
 // Function to write the output image
 void WriteImage(const char* filename, const std::vector<unsigned char>& outputImage, unsigned width, unsigned height) {
+    std::cout << "DEBUG Trying to write image with height x width: " << height << " x " << width << std::endl;
+
     unsigned error = lodepng::encode(filename, outputImage, width, height);
 
     if (error) {
-        std::cerr << "Error while encoding PNG: " << lodepng_error_text(error) << std::endl;
+        std::cout << "Error while encoding PNG: " << lodepng_error_text(error) << std::endl;
         exit(1);
     }
 }
