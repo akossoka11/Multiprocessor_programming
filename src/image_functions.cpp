@@ -59,6 +59,7 @@ std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputIm
 // Function to write the output image
 void WriteImage(const char* filename, const std::vector<unsigned char>& outputImage, unsigned width, unsigned height) {
     std::cout << "DEBUG Trying to write image with height x width: " << height << " x " << width << std::endl;
+    std::cout << "DEBUG vector size: " << outputImage.size() << std::endl;
 
     unsigned error = lodepng::encode(filename, outputImage, width, height);
 

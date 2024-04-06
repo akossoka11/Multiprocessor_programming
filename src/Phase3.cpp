@@ -18,14 +18,18 @@ float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::v
 
     for (size_t i = 0; i < winSize; ++i) {
         for (size_t j = 0; j < winSize; ++j) {
-            float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
-            float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
+            if ((x + j - d) >= 0 && (x + j - d) < rightImage[0].size() && (x + j) < leftImage[0].size() && (y + i) < leftImage.size()) {
+                float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
+                float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
 
-            sumLeft += leftPixel;
-            sumRight += rightPixel;
-            sumLeftSquared += leftPixel * leftPixel;
-            sumRightSquared += rightPixel * rightPixel;
-            sumCross += leftPixel * rightPixel;
+                sumLeft += leftPixel;
+                sumRight += rightPixel;
+                sumLeftSquared += leftPixel * leftPixel;
+                sumRightSquared += rightPixel * rightPixel;
+                sumCross += leftPixel * rightPixel;
+            } else {
+                continue;  // Falling out of bounds
+            }
         }
     }
 
@@ -50,45 +54,35 @@ std::vector<std::vector<int>> depthEstimation(
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::cout << "DEBUG Given height x width: " << height << " x " << width << std::endl;
+    std::vector<std::vector<int>> disparityMap(height, std::vector<int>(width * 4, 0));
 
-    std::vector<std::vector<int>> disparityMap(height, std::vector<int>(width, 0));
-    std::cout << "DEBUG disparityMap height: " << disparityMap.size() << " and width: " << disparityMap[0].size() << std::endl;
-
-    for (size_t y = 0; y < (height - winSize); ++y) {
-        for (size_t x = 0; x < (width - winSize); ++x) {
+    std::cout << "DEBUG rightImage width x height: " << image1[0].size() << " x " << image1.size()<< std::endl;
+    for (size_t y = 0; y < height; ++y) {
+        std::cout << "DEBUG y: " << y << std::endl;
+        for (size_t x = 0; x < width * 4; ++x) {
             float currentMaxSum = -std::numeric_limits<float>::infinity();
             int bestDisparity = 0;
 
             for (int d = 0; d < maxDisp; ++d) {
                 float currentSum = 0;
 
-                /*
-                for (int winY = 0; winY < winSize; ++winY) {
-                    for (int winX = 0; winX < winSize; ++winX) {
-                        currentSum += calculateZNCC(image0, image1, x + winX, y + winY, d, winSize);
-                    }
-                }
-                */
-
-               currentSum += calculateZNCC(image0, image1, x, y, d, winSize);
+                currentSum = calculateZNCC(image0, image1, x, y, d, winSize);
 
                 if (currentSum > currentMaxSum) {
                     currentMaxSum = currentSum;
                     bestDisparity = d;
                 }
             }
-
-            // size_t y_index = static_cast<size_t>(y);
-            // size_t x_index = static_cast<size_t>(x);
-
-            disparityMap[static_cast<size_t>(y)][static_cast<size_t>(x)] = bestDisparity;
+            disparityMap[y][x] = bestDisparity;
         }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Depth estimation done." << std::endl;
     std::cout << "Execution time of depthEstimation: " << duration.count() << " ms" << std::endl;
+
+    std::cout << "DEBUG Returning example " << static_cast<int>(disparityMap[124][492]) << std::endl;
 
     return disparityMap;
 }
@@ -200,27 +194,6 @@ int findValueForKey(const std::string& keyToFind) {
     return foundValue;
 }
 
-void printMatrix(const std::vector<std::vector<int>>& matrix) {
-    // For debugging purposes
-    for (const auto& row : matrix) {
-        for (int value : row) {
-            std::cout << value << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-void printVector(const std::vector<unsigned char>& vec, size_t width, size_t height) {
-    // For debugging purposes
-    for (size_t i = 0; i < height; ++i) {
-        for (size_t j = 0; j < width; ++j) {
-            size_t index = i * width + j;
-            std::cout << static_cast<int>(vec[index]) << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
 // Function to profile the execution time of a given function and display the result
 template <typename Func, typename... Args>
 auto profileFunction(const std::string& functionName, Func&& func, Args&&... args) {
@@ -251,12 +224,12 @@ void profileWriteImage(const std::string& functionName, Func&& func, Args&&... a
 }
 
 std::vector<std::vector<int>> vectorToMatrix(const std::vector<unsigned char>& image, size_t width, size_t height) {
-    std::vector<std::vector<int>> matrix(height, std::vector<int>(width, 0));
+    std::vector<std::vector<int>> matrix(height, std::vector<int>(width * 4, 0));
 
     for (size_t y = 0; y < height; ++y) {
-        for (size_t x = 0; x < width; ++x) {
+        for (size_t x = 0; x < width * 4; ++x) {
             // Calculate the index in the 1D vector corresponding to the current pixel
-            size_t index = y * width + x;
+            size_t index = y * width * 4 + x;
             // Assign the pixel value to the corresponding position in the matrix
             matrix[y][x] = static_cast<int>(image[index]);
         }
@@ -269,10 +242,32 @@ std::vector<unsigned char> matrixToVector(const std::vector<std::vector<int>>& m
     std::vector<unsigned char> vectorImage;
     for (const auto& row : matrixImage) {
         for (int value : row) {
+
             vectorImage.push_back(static_cast<unsigned char>(value));
         }
     }
     return vectorImage;
+}
+
+void printMatrix(const std::vector<std::vector<int>>& matrix) {
+    // For debugging purposes
+    for (const auto& row : matrix) {
+        for (int value : row) {
+            std::cout << value << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void printVector(const std::vector<unsigned char>& vec, size_t width, size_t height) {
+    // For debugging purposes
+    for (size_t i = 0; i < height; ++i) {
+        for (size_t j = 0; j < width; ++j) {
+            size_t index = i * width + j;
+            std::cout << static_cast<int>(vec[index]) << " ";
+        }
+        std::cout << std::endl;
+    }
 }
 
 int main() {
@@ -287,13 +282,15 @@ int main() {
     // Construct file paths using the workspace folder
     // Used phase2task2 converter to construct left and right grayscale images from im0 and im1 respectively, 
     // here we just fetch them from their location.
-    std::string leftFilename = workspaceFolder + "/images/left_grayscale.png";
-    std::string rightFilename = workspaceFolder + "/images/right_grayscale.png";
+    std::string leftImagePath = workspaceFolder + "/images/left_grayscale.png";
+    std::string rightImagePath = workspaceFolder + "/images/right_grayscale.png";
 
     // Load the PNG image using ReadImage function
     unsigned width, height;  // Define width and height
-    auto leftGrayImage = profileFunction("ReadImage", ReadImage, leftFilename.c_str(), std::ref(width), std::ref(height));
-    auto rightGrayImage = profileFunction("ReadImage", ReadImage, rightFilename.c_str(), std::ref(width), std::ref(height));
+    auto leftGrayImage = profileFunction(
+        "Read left gray image", ReadImage, leftImagePath.c_str(), std::ref(width), std::ref(height));
+    auto rightGrayImage = profileFunction(
+        "Read right gray image", ReadImage, rightImagePath.c_str(), std::ref(width), std::ref(height));
 
     // Check if the image was successfully loaded
     if (leftGrayImage.empty() || rightGrayImage.empty()) {
@@ -309,32 +306,33 @@ int main() {
     std::string winSizeKey = "winSize";
     size_t winSize = findValueForKey(winSizeKey);
 
-    std::string leftImagePath = workspaceFolder + "/images/left_grayscale.png";
+    std::cout << "DEBUG Vector size: " << leftGrayImage.size() << std::endl;
+
+    std::cout << "DEBUG width x height: " << width << " x " << height << std::endl;
+
     auto leftImageMatrix = vectorToMatrix(leftGrayImage, std::ref(width), std::ref(height));
-    std::string rightImagePath = workspaceFolder + "/images/right_grayscale.png";
     auto rightImageMatrix = vectorToMatrix(rightGrayImage, std::ref(width), std::ref(height));
 
     // Call the depth estimation function
     std::vector<std::vector<int>> leftToRightDisparityMap = depthEstimation(
         leftImageMatrix, rightImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
-    std::cout << "leftToRightDisparityMap has been formed." << std::endl;
 
+    /*
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
-    int maxDisparityValue = maxDisp * 4;  // Multiply by 4 to compensate for downsampling
     for (auto& row : leftToRightDisparityMap) {
         for (auto& pixel : row) {
-            pixel = static_cast<int>(pixel / maxDisparityValue * 255);
+            pixel = static_cast<int>(pixel / origMaxDisp * 255);
         }
     }
+    */
+
+    std::cout << "DEBUG Returned example " << static_cast<int>(leftToRightDisparityMap[124][492]) << std::endl;
 
     std::vector<unsigned char> disparityMapVector = matrixToVector(leftToRightDisparityMap);
 
     std::cout << "Writing the disparityMap to a file." << std::endl;
-    std::cout << "DEBUG height x width: " << height << " x " << width << std::endl;
-    std::cout << "DEBUG vector size: " << disparityMapVector.size() << std::endl;
-    // printVector(disparityMapVector, std::ref(width), std::ref(height));
     std::string depthMapFilename = workspaceFolder + "/outputs/task3_outputs/depthmap.png";
-    profileWriteImage("WriteImage (disparityMap)", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
+    profileWriteImage("Write disparityMap to image", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
                       std::ref(width), std::ref(height));
 
     return 0;
