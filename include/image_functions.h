@@ -13,7 +13,7 @@ std::vector<unsigned char> ApplyFilter(const std::vector<unsigned char>& inputIm
 
 std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& width, unsigned& height);
 
-std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputImage, unsigned originalWidth, unsigned originalHeight);
+std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputImage, unsigned originalWidth, unsigned originalHeight, unsigned downscaleFactor);
 
 void WriteImage(const char* filename, const std::vector<unsigned char>& outputImage, unsigned width, unsigned height);
 

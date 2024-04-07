@@ -65,9 +65,10 @@ int main() {
 
     // Resize the image
     //std::vector<unsigned char> resizedImage = ResizeImage(image_0, width, height);
-    auto resizedImage = profileFunction("ResizeImage", ResizeImage, image_0, std::ref(width), std::ref(height));
-    unsigned newWidth = width / 4;
-    unsigned newHeight = height / 4;
+    const int downscaleFactor = 4;
+    auto resizedImage = profileFunction("ResizeImage", ResizeImage, image_0, std::ref(width), std::ref(height), downscaleFactor);
+    unsigned newWidth = width / downscaleFactor;
+    unsigned newHeight = height / downscaleFactor;
 
     // Display some information about the resized image
     std::cout << "Resized Image dimensions: " << newWidth << "x" << newHeight << std::endl;

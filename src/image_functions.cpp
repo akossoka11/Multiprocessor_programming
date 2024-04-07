@@ -93,19 +93,20 @@ std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& widt
     return image;
 }
 
-std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputImage, unsigned originalWidth, unsigned originalHeight) {
+std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputImage, unsigned originalWidth, 
+                                       unsigned originalHeight, unsigned downscaleFactor) {
     // Calculate new dimensions for the resized image (1/4 of the original size)
-    unsigned newWidth = originalWidth / 4;
-    unsigned newHeight = originalHeight / 4;
+    unsigned newWidth = originalWidth / downscaleFactor;
+    unsigned newHeight = originalHeight / downscaleFactor;
 
     // Create a vector to store the resized image
-    std::vector<unsigned char> resizedImage(newWidth * newHeight * 4, 255); // Initialize to white
+    std::vector<unsigned char> resizedImage(newWidth * newHeight * downscaleFactor, 255); // Initialize to white
 
     // Resize the image by taking pixels from every fourth row and column
     for (unsigned y = 0; y < newHeight; ++y) {
         for (unsigned x = 0; x < newWidth; ++x) {
-            size_t originalIndex = ((y * 4) * originalWidth + (x * 4)) * 4;
-            size_t resizedIndex = (y * newWidth + x) * 4;
+            size_t originalIndex = ((y * 4) * originalWidth + (x * 4)) * downscaleFactor;
+            size_t resizedIndex = (y * newWidth + x) * downscaleFactor;
 
             // Copy the RGBA values
             for (int i = 0; i < 4; ++i) {
