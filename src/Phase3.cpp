@@ -14,7 +14,7 @@
 float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
     size_t x, size_t y, int d, size_t winSize) {
     float B = static_cast<float>(winSize);
-    float sumLeft = 0, sumRight = 0, sumLeftSquared = 0, sumRightSquared = 0, sumCross = 0;
+    float sumLeft = 0, sumRight = 0, numerator = 0, leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
 
     for (size_t i = 0; i < winSize; ++i) {
         for (size_t j = 0; j < winSize; ++j) {
@@ -24,21 +24,34 @@ float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::v
 
                 sumLeft += leftPixel;
                 sumRight += rightPixel;
-                sumLeftSquared += leftPixel * leftPixel;
-                sumRightSquared += rightPixel * rightPixel;
-                sumCross += leftPixel * rightPixel;
             } else {
                 continue;  // Falling out of bounds
             }
         }
     }
 
-    // float meanLeft = sumLeft / (B * B);
-    // float meanRight = sumRight / (B * B);
+    float meanLeft = sumLeft / (B * B);
+    float meanRight = sumRight / (B * B);
 
-    float numerator = sumCross - (sumLeft * sumRight) / (B * B);
-    float denominatorLeft = std::sqrt(sumLeftSquared - (sumLeft * sumLeft) / (B * B));
-    float denominatorRight = std::sqrt(sumRightSquared - (sumRight * sumRight) / (B * B));
+    for (size_t i = 0; i < winSize; ++i) {
+        for (size_t j = 0; j < winSize; ++j) {
+            if ((x + j - d) >= 0 && (x + j - d) < rightImage[0].size() && (x + j) < leftImage[0].size() && (y + i) < leftImage.size()) {
+                float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
+                float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
+
+                float leftMeanDeviation = leftPixel - meanLeft;
+                leftMeanDeviationSquared += leftMeanDeviation * leftMeanDeviation;
+                float rightMeanDeviation = rightPixel - meanRight;
+                rightMeanDeviationSquared += rightMeanDeviation * rightMeanDeviation;
+                numerator += leftMeanDeviation * rightMeanDeviation;
+            } else {
+                continue;  // Falling out of bounds
+            }
+        }
+    }
+
+    float denominatorLeft = std::sqrt(leftMeanDeviationSquared);
+    float denominatorRight = std::sqrt(rightMeanDeviationSquared);
 
     float znccValue = numerator / (denominatorLeft * denominatorRight);
 
@@ -71,10 +84,10 @@ std::vector<std::vector<int>> depthEstimation(
                     bestDisparity = d;
                 }
             }
-            disparityMap[y][x] = bestDisparity;
-            disparityMap[y][x+1] = bestDisparity;
-            disparityMap[y][x+2] = bestDisparity;
-            disparityMap[y][x+3] = bestDisparity;
+            disparityMap[y][x] = bestDisparity;    // R
+            disparityMap[y][x+1] = bestDisparity;  // B
+            disparityMap[y][x+2] = bestDisparity;  // G
+            disparityMap[y][x+3] = bestDisparity;  // A
         }
     }
 
@@ -297,8 +310,10 @@ int main() {
     }
 
     // Resize images
-    auto resizedLeftImage = profileFunction("resizing left image", ResizeImage, leftImage, std::ref(origWidth), std::ref(origHeight));
-    auto resizedRightImage = profileFunction("resizing right image", ResizeImage, rightImage, std::ref(origWidth), std::ref(origHeight));
+    auto resizedLeftImage = profileFunction(
+        "resizing left image", ResizeImage, leftImage, std::ref(origWidth), std::ref(origHeight));
+    auto resizedRightImage = profileFunction(
+        "resizing right image", ResizeImage, rightImage, std::ref(origWidth), std::ref(origHeight));
     unsigned width = origWidth / 4;
     unsigned height = origHeight / 4;
 
@@ -326,6 +341,8 @@ int main() {
     // Call the depth estimation function
     std::vector<std::vector<int>> leftToRightDisparityMap = depthEstimation(
         leftImageMatrix, rightImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
+    std::vector<std::vector<int>> rightToLeftDisparityMap = depthEstimation(
+        rightImageMatrix, leftImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
 
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
     for (auto& row : leftToRightDisparityMap) {
@@ -333,13 +350,21 @@ int main() {
             pixel = static_cast<int>(pixel * 4);
         }
     }
+    for (auto& row : rightToLeftDisparityMap) {
+        for (auto& pixel : row) {
+            pixel = static_cast<int>(pixel * 4);
+        }
+    }
 
-    std::vector<unsigned char> disparityMapVector = matrixToVector(leftToRightDisparityMap);
+    std::vector<unsigned char> disparityMapVectorLeft = matrixToVector(leftToRightDisparityMap);
+    std::vector<unsigned char> disparityMapVectorRight = matrixToVector(rightToLeftDisparityMap);
 
-    std::cout << "Writing the disparityMap to a file." << std::endl;
-    std::string depthMapFilename = workspaceFolder + "/outputs/task3_outputs/depthmap.png";
-    profileWriteImage("writing disparityMap to image", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
-                      std::ref(width), std::ref(height));
-
+    std::cout << "Writing the disparityMaps to files." << std::endl;
+    std::string depthMapFilename1 = workspaceFolder + "/outputs/task3_outputs/depthmap1.png";
+    std::string depthMapFilename2 = workspaceFolder + "/outputs/task3_outputs/depthmap2.png";
+    profileWriteImage("writing disparityMap1 to image", WriteImage, depthMapFilename1.c_str(), 
+        disparityMapVectorLeft, std::ref(width), std::ref(height));
+    profileWriteImage("writing disparityMap2 to image", WriteImage, depthMapFilename2.c_str(), 
+        disparityMapVectorRight, std::ref(width), std::ref(height));
     return 0;
 }
