@@ -17,6 +17,67 @@ std::string getCurrentDirectory() {
     }
 }
 
+std::vector<unsigned char> ConvertToGreyscale(const std::vector<unsigned char>& image, unsigned width, unsigned height) {
+    std::vector<unsigned char> greyscaleImage;
+    greyscaleImage.reserve(width * height);
+
+    for (size_t i = 0; i < image.size(); i += 4) {
+        // Extract RGB values
+        unsigned char r = image[i];
+        unsigned char g = image[i + 1];
+        unsigned char b = image[i + 2];
+
+        // Compute greyscale value using the given formula
+        unsigned char grey = static_cast<unsigned char>(0.2126 * r + 0.7152 * g + 0.0722 * b);
+
+        // Set RGB values of the pixel to the computed greyscale value
+        greyscaleImage.push_back(grey);
+        greyscaleImage.push_back(grey);
+        greyscaleImage.push_back(grey);
+        greyscaleImage.push_back(255);  // Alpha value
+    }
+
+    return greyscaleImage;
+}
+
+std::vector<unsigned char> ApplyFilter(const std::vector<unsigned char>& inputImage, unsigned width, unsigned height) {
+    std::vector<unsigned char> filteredImage(width * height * 4, 255); // Initialize to white
+
+    // Example: Identity filter (no change)
+    float filter[5][5] = {
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0}
+    };
+
+    // Apply the filter to each pixel
+    for (unsigned y = 2; y < height - 2; ++y) {
+        for (unsigned x = 2; x < width - 2; ++x) {
+            float sum[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+            for (int i = -2; i <= 2; ++i) {
+                for (int j = -2; j <= 2; ++j) {
+                    size_t index = ((y + i) * width + (x + j)) * 4;
+
+                    for (int c = 0; c < 4; ++c) {
+                        sum[c] += static_cast<float>(inputImage[index + c]) * filter[i + 2][j + 2];
+                    }
+                }
+            }
+
+            size_t filteredIndex = (y * width + x) * 4;
+
+            for (int c = 0; c < 4; ++c) {
+                filteredImage[filteredIndex + c] = static_cast<unsigned char>(sum[c]);
+            }
+        }
+    }
+
+    return filteredImage;
+}
+
 std::vector<unsigned char> ReadImage(const std::string& filename, unsigned& width, unsigned& height) {
     std::vector<unsigned char> image;
 
@@ -58,9 +119,6 @@ std::vector<unsigned char> ResizeImage(const std::vector<unsigned char>& inputIm
 
 // Function to write the output image
 void WriteImage(const char* filename, const std::vector<unsigned char>& outputImage, unsigned width, unsigned height) {
-    std::cout << "DEBUG Trying to write image with height x width: " << height << " x " << width << std::endl;
-    std::cout << "DEBUG vector size: " << outputImage.size() << std::endl;
-
     unsigned error = lodepng::encode(filename, outputImage, width, height);
 
     if (error) {
