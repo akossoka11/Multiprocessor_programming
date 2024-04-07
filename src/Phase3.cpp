@@ -56,10 +56,8 @@ std::vector<std::vector<int>> depthEstimation(
 
     std::vector<std::vector<int>> disparityMap(height, std::vector<int>(width * 4, 0));
 
-    std::cout << "DEBUG rightImage width x height: " << image1[0].size() << " x " << image1.size()<< std::endl;
     for (size_t y = 0; y < height; ++y) {
-        std::cout << "DEBUG y: " << y << std::endl;
-        for (size_t x = 0; x < width * 4; ++x) {
+        for (size_t x = 0; x < width * 4; x += 4) {
             float currentMaxSum = -std::numeric_limits<float>::infinity();
             int bestDisparity = 0;
 
@@ -74,6 +72,9 @@ std::vector<std::vector<int>> depthEstimation(
                 }
             }
             disparityMap[y][x] = bestDisparity;
+            disparityMap[y][x+1] = bestDisparity;
+            disparityMap[y][x+2] = bestDisparity;
+            disparityMap[y][x+3] = bestDisparity;
         }
     }
 
@@ -81,8 +82,6 @@ std::vector<std::vector<int>> depthEstimation(
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "Depth estimation done." << std::endl;
     std::cout << "Execution time of depthEstimation: " << duration.count() << " ms" << std::endl;
-
-    std::cout << "DEBUG Returning example " << static_cast<int>(disparityMap[124][492]) << std::endl;
 
     return disparityMap;
 }
@@ -280,23 +279,38 @@ int main() {
     std::string workspaceFolder = getCurrentDirectory();
 
     // Construct file paths using the workspace folder
-    // Used phase2task2 converter to construct left and right grayscale images from im0 and im1 respectively, 
-    // here we just fetch them from their location.
-    std::string leftImagePath = workspaceFolder + "/images/left_grayscale.png";
-    std::string rightImagePath = workspaceFolder + "/images/right_grayscale.png";
+    std::string leftImagePath = workspaceFolder + "/images/im0.png";
+    std::string rightImagePath = workspaceFolder + "/images/im1.png";
 
-    // Load the PNG image using ReadImage function
-    unsigned width, height;  // Define width and height
-    auto leftGrayImage = profileFunction(
-        "Read left gray image", ReadImage, leftImagePath.c_str(), std::ref(width), std::ref(height));
-    auto rightGrayImage = profileFunction(
-        "Read right gray image", ReadImage, rightImagePath.c_str(), std::ref(width), std::ref(height));
+    unsigned origWidth, origHeight;  // Define original width and height
+
+    auto leftImage = profileFunction(
+        "reading original left image", ReadImage, leftImagePath.c_str(), std::ref(origWidth), std::ref(origHeight));
+    auto rightImage = profileFunction(
+        "reading original right image", ReadImage, rightImagePath.c_str(), std::ref(origWidth), std::ref(origHeight));
 
     // Check if the image was successfully loaded
-    if (leftGrayImage.empty() || rightGrayImage.empty()) {
+    if (leftImage.empty() || rightImage.empty()) {
+        // Handle the error as needed
         std::cout << "Failed to load image(s)." << std::endl;
         return 1;
     }
+
+    // Resize images
+    auto resizedLeftImage = profileFunction("resizing left image", ResizeImage, leftImage, std::ref(origWidth), std::ref(origHeight));
+    auto resizedRightImage = profileFunction("resizing right image", ResizeImage, rightImage, std::ref(origWidth), std::ref(origHeight));
+    unsigned width = origWidth / 4;
+    unsigned height = origHeight / 4;
+
+    // Convert to grayscale
+    auto leftGrayImage = profileFunction(
+        "converting left image to grayscale", ConvertToGreyscale, resizedLeftImage, std::ref(width), std::ref(height));
+    auto rightGrayImage = profileFunction(
+        "converting right image to grayscale", ConvertToGreyscale, resizedRightImage, std::ref(width), std::ref(height));
+    std::string leftGrayFilename = workspaceFolder + "/outputs/task3_outputs/left_grayscale.png";
+    std::string rightGrayFilename = workspaceFolder + "/outputs/task3_outputs/right_grayscale.png";
+    profileWriteImage("writing left grayscale image", WriteImage, leftGrayFilename.c_str(), leftGrayImage, width, height);
+    profileWriteImage("writing right grayscale image", WriteImage, rightGrayFilename.c_str(), rightGrayImage, width, height);
 
     std::string maxDispKey = "ndisp";
     int origMaxDisp = findValueForKey(maxDispKey);
@@ -306,10 +320,6 @@ int main() {
     std::string winSizeKey = "winSize";
     size_t winSize = findValueForKey(winSizeKey);
 
-    std::cout << "DEBUG Vector size: " << leftGrayImage.size() << std::endl;
-
-    std::cout << "DEBUG width x height: " << width << " x " << height << std::endl;
-
     auto leftImageMatrix = vectorToMatrix(leftGrayImage, std::ref(width), std::ref(height));
     auto rightImageMatrix = vectorToMatrix(rightGrayImage, std::ref(width), std::ref(height));
 
@@ -317,22 +327,18 @@ int main() {
     std::vector<std::vector<int>> leftToRightDisparityMap = depthEstimation(
         leftImageMatrix, rightImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
 
-    /*
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
     for (auto& row : leftToRightDisparityMap) {
         for (auto& pixel : row) {
-            pixel = static_cast<int>(pixel / origMaxDisp * 255);
+            pixel = static_cast<int>(pixel * 4);
         }
     }
-    */
-
-    std::cout << "DEBUG Returned example " << static_cast<int>(leftToRightDisparityMap[124][492]) << std::endl;
 
     std::vector<unsigned char> disparityMapVector = matrixToVector(leftToRightDisparityMap);
 
     std::cout << "Writing the disparityMap to a file." << std::endl;
     std::string depthMapFilename = workspaceFolder + "/outputs/task3_outputs/depthmap.png";
-    profileWriteImage("Write disparityMap to image", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
+    profileWriteImage("writing disparityMap to image", WriteImage, depthMapFilename.c_str(), disparityMapVector, 
                       std::ref(width), std::ref(height));
 
     return 0;
