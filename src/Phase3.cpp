@@ -12,42 +12,34 @@
 
 // Function to calculate ZNCC for a given window
 float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::vector<std::vector<int>>& rightImage,
-                    size_t x, size_t y, int d, size_t winSize) {
+                    unsigned x, unsigned y, int d, unsigned winSize) {
     float B = static_cast<float>(winSize);
-    float sumLeft = 0, sumRight = 0, numerator = 0, leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
-    float meanLeft = 0, meanRight = 0;
+    int sumLeft = 0, sumRight = 0;
+    float numerator = 0, leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
 
     // Precompute mean values
-    for (size_t i = 0; i < winSize; ++i) {
-        for (size_t j = 0; j < winSize; ++j) {
-            if ((x + j) < leftImage[0].size() && (y + i) < leftImage.size()) {
-                sumLeft += leftImage[y + i][x + j];
-            }
-            if ((x + j - d) >= 0 && (x + j - d) < rightImage[0].size() && (y + i) < rightImage.size()) {
-                sumRight += rightImage[y + i][x + j - d];
-            }
+    for (int i = 0; i < winSize; ++i) {
+        for (int j = 0; j < winSize; ++j) {
+            sumLeft += leftImage[y + i][x + j];
+            sumRight += rightImage[y + i][x + j - d];
         }
     }
 
-    meanLeft = sumLeft / (B * B);
-    meanRight = sumRight / (B * B);
+    float meanLeft = static_cast<float>(sumLeft) / (B * B);
+    float meanRight = static_cast<float>(sumRight) / (B * B);
 
     // Calculate ZNCC
-    for (size_t i = 0; i < winSize; ++i) {
-        for (size_t j = 0; j < winSize; ++j) {
-            if ((x + j) < leftImage[0].size() && (y + i) < leftImage.size() &&
-                (x + j - d) >= 0 && (x + j - d) < rightImage[0].size() && (y + i) < rightImage.size()) {
+    for (int i = 0; i < winSize; ++i) {
+        for (int j = 0; j < winSize; ++j) {
+            float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
+            float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
 
-                float leftPixel = static_cast<float>(leftImage[y + i][x + j]);
-                float rightPixel = static_cast<float>(rightImage[y + i][x + j - d]);
+            float leftMeanDeviation = leftPixel - meanLeft;
+            float rightMeanDeviation = rightPixel - meanRight;
 
-                float leftMeanDeviation = leftPixel - meanLeft;
-                float rightMeanDeviation = rightPixel - meanRight;
-
-                numerator += leftMeanDeviation * rightMeanDeviation;
-                leftMeanDeviationSquared += leftMeanDeviation * leftMeanDeviation;
-                rightMeanDeviationSquared += rightMeanDeviation * rightMeanDeviation;
-            }
+            numerator += leftMeanDeviation * rightMeanDeviation;
+            leftMeanDeviationSquared += leftMeanDeviation * leftMeanDeviation;
+            rightMeanDeviationSquared += rightMeanDeviation * rightMeanDeviation;
         }
     }
 
@@ -62,7 +54,7 @@ float calculateZNCC(const std::vector<std::vector<int>>& leftImage, const std::v
 std::vector<std::vector<int>> depthEstimation(
     const std::vector<std::vector<int>>& image0, 
     const std::vector<std::vector<int>>& image1,
-    size_t width, size_t height, int maxDisp, size_t winSize) {
+    unsigned width, unsigned height, int maxDisp, unsigned winSize) {
 
     std::cout << "Depth estimation in progress." << std::endl;
 
@@ -70,25 +62,27 @@ std::vector<std::vector<int>> depthEstimation(
 
     std::vector<std::vector<int>> disparityMap(height, std::vector<int>(width * 4, 0));
 
-    for (size_t y = 0; y < height; ++y) {
-        for (size_t x = 0; x < width * 4; x += 4) {
+    for (size_t y = 0; y < (height - winSize); ++y) {
+        for (size_t x = 0; x < 4 * (width - winSize); x += 4) {
             float currentMaxSum = -std::numeric_limits<float>::infinity();
             int bestDisparity = 0;
 
-            for (int d = 0; d < maxDisp; ++d) {
-                float currentSum = 0;
+            for (size_t d = 0; d < maxDisp; ++d) {
+                if (x >= d) {
+                    float currentSum = 0;
 
-                currentSum = calculateZNCC(image0, image1, x, y, d, winSize);
+                    currentSum = calculateZNCC(image0, image1, x, y, d, winSize);
 
-                if (currentSum > currentMaxSum) {
-                    currentMaxSum = currentSum;
-                    bestDisparity = d;
+                    if (currentSum > currentMaxSum) {
+                        currentMaxSum = currentSum;
+                        bestDisparity = d;
+                    }
                 }
             }
             disparityMap[y][x] = bestDisparity;    // R
             disparityMap[y][x+1] = bestDisparity;  // B
             disparityMap[y][x+2] = bestDisparity;  // G
-            disparityMap[y][x+3] = bestDisparity;  // A
+            disparityMap[y][x+3] = 255;  // A
         }
     }
 
@@ -335,21 +329,21 @@ int main() {
 
     // winSize can be edited by changing the value from calib.txt
     std::string winSizeKey = "winSize";
-    size_t winSize = findValueForKey(winSizeKey);
+    int winSize = findValueForKey(winSizeKey);
 
     auto leftImageMatrix = vectorToMatrix(leftGrayImage, std::ref(width), std::ref(height));
     auto rightImageMatrix = vectorToMatrix(rightGrayImage, std::ref(width), std::ref(height));
 
     // Call the depth estimation function
     std::vector<std::vector<int>> leftToRightDisparityMap = depthEstimation(
-        leftImageMatrix, rightImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
+        leftImageMatrix, rightImageMatrix, width, height, maxDisp, winSize);
     // std::vector<std::vector<int>> rightToLeftDisparityMap = depthEstimation(
     //     rightImageMatrix, leftImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
-
+    /*
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
     for (auto& row : leftToRightDisparityMap) {
         for (auto& pixel : row) {
-            float normalizedPixel = pixel % maxDisp * origMaxDisp;
+            float normalizedPixel = static_cast<float>(pixel) / static_cast<float>(maxDisp) * static_cast<float>(origMaxDisp);
             pixel = static_cast<int>(normalizedPixel);
         }
     }/*
