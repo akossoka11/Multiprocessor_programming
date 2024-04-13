@@ -10,42 +10,6 @@
 #include <vector>
 #include <cmath>
 
-/*
-// Function to calculate ZNCC for a given window
-float calculateZNCC(const std::vector<unsigned char>& image, const std::vector<unsigned char>& otherImage,
-                    unsigned x, unsigned y, unsigned d, unsigned winSize) {
-    unsigned sumLeft = 0, sumRight = 0, numerator = 0;
-    unsigned leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
-
-    // Precompute mean red value in each pixel
-    for (unsigned i = 0; i < winSize; ++i) {
-        for (unsigned j = 0; j < winSize; ++j) {
-            sumLeft += image[(y + i) * x + (x + j)];
-            sumRight += otherImage[(y + i) * x + (x + j - d)];
-        }
-    }
-
-    unsigned meanLeft = sumLeft / (winSize * winSize);
-    unsigned meanRight = sumRight / (winSize * winSize);
-
-    // Calculate ZNCC
-    for (unsigned i = 0; i < winSize; ++i) {
-        for (unsigned j = 0; j < winSize; ++j) {
-            unsigned leftDiff = image[(y + i) * x + (x + j)] - meanLeft;
-            unsigned rightDiff = otherImage[(y + i) * x + (x + j - d)] - meanRight;
-
-            numerator += leftDiff * rightDiff;
-            leftMeanDeviationSquared += leftDiff * leftDiff;
-            rightMeanDeviationSquared += rightDiff * rightDiff;
-        }
-    }
-
-    float znccValue = (float)(numerator / (std::sqrt(leftMeanDeviationSquared) * std::sqrt(rightMeanDeviationSquared)));
-
-    return znccValue;
-}
-*/
-
 const std::vector<unsigned char> depthEstimation(
     const std::vector<unsigned char>& image, 
     const std::vector<unsigned char>& otherImage,
@@ -64,11 +28,11 @@ const std::vector<unsigned char> depthEstimation(
 
             for (unsigned d = 0; d < maxDisp; ++d) {
                 if (x >= d) {
-                    // float currentSum = 0;
                     // Calculate ZNCC value
 
-                    unsigned sumLeft = 0, sumRight = 0, numerator = 0;
-                    unsigned leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
+                    unsigned sumLeft = 0, sumRight = 0,
+                             leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
+                    int numerator = 0;
 
                     // Precompute mean red value in each pixel
                     for (unsigned i = 0; i < winSize; ++i) {
@@ -84,8 +48,8 @@ const std::vector<unsigned char> depthEstimation(
                     // Calculate ZNCC
                     for (unsigned i = 0; i < winSize; ++i) {
                         for (unsigned j = 0; j < winSize; ++j) {
-                            unsigned leftDiff = image[4 * ((y + i) * width + (x + j))] - meanLeft;
-                            unsigned rightDiff = otherImage[4 * ((y + i) * width + (x + j - d))] - meanRight;
+                            char leftDiff = image[4 * ((y + i) * width + (x + j))] - meanLeft;
+                            char rightDiff = otherImage[4 * ((y + i) * width + (x + j - d))] - meanRight;
 
                             numerator += leftDiff * rightDiff;
                             leftMeanDeviationSquared += leftDiff * leftDiff;
@@ -106,7 +70,7 @@ const std::vector<unsigned char> depthEstimation(
             disparityMap[4 * ((y * width) + x)] = bestDisparity;    // R
             disparityMap[4 * ((y * width) + x) + 1] = bestDisparity;  // B
             disparityMap[4 * ((y * width) + x) + 2] = bestDisparity;  // G
-            disparityMap[4 * ((y * width) + x) + 3] = 255;  // A
+            disparityMap[4 * ((y * width) + x) + 3] = 255 / 4;  // A
         }
     }
 
@@ -251,53 +215,6 @@ void profileWriteImage(const std::string& functionName, Func&& func, Args&&... a
 
     std::cout << "Execution time of " << functionName << ": " << duration.count() << " ms" << std::endl;
 }
-/*
-std::vector<std::vector<int>> vectorToMatrix(const std::vector<unsigned char>& image, unsigned width, unsigned height) {
-    std::vector<std::vector<int>> matrix(height, std::vector<int>(width * 4, 0));
-
-    for (unsigned y = 0; y < height; ++y) {
-        for (unsigned x = 0; x < width * 4; ++x) {
-            // Calculate the index in the 1D vector corresponding to the current pixel
-            unsigned index = y * width * 4 + x;
-            // Assign the pixel value to the corresponding position in the matrix
-            matrix[y][x] = static_cast<int>(image[index]);
-        }
-    }
-
-    return matrix;
-}
-
-std::vector<unsigned char> matrixToVector(const std::vector<std::vector<int>>& matrixImage) {
-    std::vector<unsigned char> vectorImage;
-    for (const auto& row : matrixImage) {
-        for (int value : row) {
-
-            vectorImage.push_back(static_cast<unsigned char>(value));
-        }
-    }
-    return vectorImage;
-}
-
-void printMatrix(const std::vector<std::vector<int>>& matrix) {
-    // For debugging purposes
-    for (const auto& row : matrix) {
-        for (int value : row) {
-            std::cout << value << " ";
-        }
-        std::cout << std::endl;
-    }
-}
-
-void printVector(const std::vector<unsigned char>& vec, size_t width, size_t height) {
-    // For debugging purposes
-    for (size_t i = 0; i < height; ++i) {
-        for (size_t j = 0; j < width; ++j) {
-            size_t index = i * width + j;
-            std::cout << static_cast<int>(vec[index]) << " ";
-        }
-        std::cout << std::endl;
-    }
-}*/
 
 int main() {
     // Example usage:
@@ -353,32 +270,25 @@ int main() {
     std::string winSizeKey = "winSize";
     unsigned winSize = findValueForKey(winSizeKey);
 
-    /*
-    auto leftImageMatrix = vectorToMatrix(leftGrayImage, std::ref(width), std::ref(height));
-    auto rightImageMatrix = vectorToMatrix(rightGrayImage, std::ref(width), std::ref(height));
-    */
     // Call the depth estimation function
     std::vector<unsigned char> leftToRightDisparityMap = depthEstimation(
         leftGrayImage, rightGrayImage, width, height, maxDisp, winSize);
-    // std::vector<std::vector<int>> rightToLeftDisparityMap = depthEstimation(
-    //     rightImageMatrix, leftImageMatrix, std::ref(width), std::ref(height), maxDisp, winSize);
-    /*
+    /*std::vector<std::vector<int>> rightToLeftDisparityMap = depthEstimation(
+        rightGrayImage, leftGrayImage, std::ref(width), std::ref(height), maxDisp, winSize);
+    */
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
-    for (auto& row : leftToRightDisparityMap) {
-        for (auto& pixel : row) {
-            float normalizedPixel = static_cast<float>(pixel) / static_cast<float>(maxDisp) * static_cast<float>(origMaxDisp);
-            pixel = static_cast<int>(normalizedPixel);
-        }
+    for (auto& pixel : leftToRightDisparityMap) {
+            pixel = pixel * origMaxDisp / maxDisp;
+            // pixel = normalizedPixel;
     }
+    /*
     for (auto& row : rightToLeftDisparityMap) {
         for (auto& pixel : row) {
             float normalizedPixel = pixel % maxDisp * origMaxDisp;
             pixel = static_cast<int>(normalizedPixel);
         }
-    }*/
-
-    // std::vector<unsigned char> disparityMapVectorLeft = matrixToVector(leftToRightDisparityMap);
-    // std::vector<unsigned char> disparityMapVectorRight = matrixToVector(rightToLeftDisparityMap);
+    }
+    */
 
     std::cout << "Writing the disparityMaps to files." << std::endl;
     std::string depthMapFilename1 = workspaceFolder + "/outputs/task3_outputs/depthmap1.png";
