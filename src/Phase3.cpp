@@ -10,16 +10,16 @@
 #include <vector>
 #include <cmath>
 
-const std::vector<unsigned char> depthEstimation(
-    const std::vector<unsigned char>& image, 
-    const std::vector<unsigned char>& otherImage,
+std::pair<const std::vector<unsigned char>, const std::vector<unsigned char>> depthEstimation(
+    const std::vector<unsigned char>& leftImage, 
+    const std::vector<unsigned char>& rightImage,
     unsigned width, unsigned height, unsigned maxDisp, unsigned winSize) {
 
     std::cout << "Depth estimation in progress..." << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::vector<unsigned char> disparityMap(height * (width * 4), 0);
+    std::vector<unsigned char> leftDisparityMap(height * (width * 4), 0);
 
     for (unsigned y = 0; y < (height - winSize); ++y) {
         for (unsigned x = 0; x < (width - winSize); ++x) {
@@ -30,15 +30,14 @@ const std::vector<unsigned char> depthEstimation(
                 if (x >= d) {
                     // Calculate ZNCC value
 
-                    unsigned sumLeft = 0, sumRight = 0,
-                             leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
+                    unsigned sumLeft = 0, sumRight = 0, leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
                     int numerator = 0;
 
                     // Precompute mean red value in each pixel
                     for (unsigned i = 0; i < winSize; ++i) {
                         for (unsigned j = 0; j < winSize; ++j) {
-                            sumLeft += image[4 * ((y + i) * width + (x + j))];
-                            sumRight += otherImage[4 * ((y + i) * width + (x + j - d))];
+                            sumLeft += leftImage[4 * ((y + i) * width + (x + j))];
+                            sumRight += rightImage[4 * ((y + i) * width + (x + j - d))];
                         }
                     }
 
@@ -48,12 +47,12 @@ const std::vector<unsigned char> depthEstimation(
                     // Calculate ZNCC
                     for (unsigned i = 0; i < winSize; ++i) {
                         for (unsigned j = 0; j < winSize; ++j) {
-                            char leftDiff = image[4 * ((y + i) * width + (x + j))] - meanLeft;
-                            char rightDiff = otherImage[4 * ((y + i) * width + (x + j - d))] - meanRight;
+                            char leftDiff = leftImage[4 * ((y + i) * width + (x + j))] - meanLeft;
+                            char rightDiff = rightImage[4 * ((y + i) * width + (x + j - d))] - meanRight;
 
                             numerator += leftDiff * rightDiff;
-                            leftMeanDeviationSquared += leftDiff * leftDiff;
-                            rightMeanDeviationSquared += rightDiff * rightDiff;
+                            leftMeanDeviationSquared += (unsigned)(leftDiff * leftDiff);
+                            rightMeanDeviationSquared += (unsigned)(rightDiff * rightDiff);
                         }
                     }
 
@@ -67,48 +66,109 @@ const std::vector<unsigned char> depthEstimation(
             }
 
             // Add values to pixel
-            disparityMap[4 * ((y * width) + x)] = bestDisparity;    // R
-            disparityMap[4 * ((y * width) + x) + 1] = bestDisparity;  // B
-            disparityMap[4 * ((y * width) + x) + 2] = bestDisparity;  // G
-            disparityMap[4 * ((y * width) + x) + 3] = 255 / 4;  // A
+            leftDisparityMap[4 * ((y * width) + x)] = bestDisparity;    // R
+            leftDisparityMap[4 * ((y * width) + x) + 1] = bestDisparity;  // B
+            leftDisparityMap[4 * ((y * width) + x) + 2] = bestDisparity;  // G
+            leftDisparityMap[4 * ((y * width) + x) + 3] = 255 / 4;  // A
         }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Depth estimation done." << std::endl;
-    std::cout << "Execution time of depthEstimation: " << duration.count() << " ms" << std::endl;
+    std::cout << "Depth estimation left-to-right done." << std::endl;
+    std::cout << "Execution time: " << duration.count() << " ms" << std::endl;
 
-    return disparityMap;
+    auto start2 = std::chrono::high_resolution_clock::now();
+
+    std::vector<unsigned char> rightDisparityMap(height * (width * 4), 0);
+
+    for (unsigned y = 0; y < (height - winSize); ++y) {
+        for (unsigned x = 0; x < (width - winSize); ++x) {
+            float currentMaxSum = 0.0f;
+            unsigned char bestDisparity = 0;
+
+            for (unsigned d = maxDisp; d > 0; --d) {
+                if ((x + d + winSize) < (width * 4)) {
+                    // Calculate ZNCC value
+
+                    unsigned sumLeft = 0, sumRight = 0, leftMeanDeviationSquared = 0, rightMeanDeviationSquared = 0;
+                    int numerator = 0;
+
+                    // Precompute mean red value in each pixel
+                    for (unsigned i = 0; i < winSize; ++i) {
+                        for (unsigned j = 0; j < winSize; ++j) {
+                            sumLeft += leftImage[4 * ((y + i) * width + (x + j + d))];
+                            sumRight += rightImage[4 * ((y + i) * width + (x + j))];
+                        }
+                    }
+
+                    unsigned meanLeft = sumLeft / (winSize * winSize);
+                    unsigned meanRight = sumRight / (winSize * winSize);
+
+                    // Calculate ZNCC
+                    for (unsigned i = 0; i < winSize; ++i) {
+                        for (unsigned j = 0; j < winSize; ++j) {
+                            char leftDiff = leftImage[4 * ((y + i) * width + (x + j + d))] - meanLeft;
+                            char rightDiff = rightImage[4 * ((y + i) * width + (x + j))] - meanRight;
+
+                            numerator += leftDiff * rightDiff;
+                            leftMeanDeviationSquared += (unsigned)(leftDiff * leftDiff);
+                            rightMeanDeviationSquared += (unsigned)(rightDiff * rightDiff);
+                        }
+                    }
+
+                    float znccValue = (float)(numerator / (std::sqrt(leftMeanDeviationSquared) * std::sqrt(rightMeanDeviationSquared)));
+
+                    if (znccValue > currentMaxSum) {
+                        currentMaxSum = znccValue;
+                        bestDisparity = d;
+                    }
+                }
+            }
+
+            // Add values to pixel
+            rightDisparityMap[4 * ((y * width) + x)] = bestDisparity;    // R
+            rightDisparityMap[4 * ((y * width) + x) + 1] = bestDisparity;  // B
+            rightDisparityMap[4 * ((y * width) + x) + 2] = bestDisparity;  // G
+            rightDisparityMap[4 * ((y * width) + x) + 3] = 255 / 4;  // A
+        }
+    }
+
+    auto end2 = std::chrono::high_resolution_clock::now();
+    auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end2 - start2);
+    std::cout << "Depth estimation right-to-left done." << std::endl;
+    std::cout << "Execution time: " << duration2.count() << " ms" << std::endl;
+
+    return {leftDisparityMap, rightDisparityMap};
 }
-
 /*
-void crossCheck(
-    const std::vector<std::vector<int>>& leftDisparityMap, const std::vector<std::vector<int>>& rightDisparityMap, 
-    std::vector<std::vector<int>>& consolidatedDisparityMap, int threshold) {
+std::vector<unsigned char> crossCheck(
+    const std::vector<unsigned char>& leftDisparityMap, const std::vector<unsigned char>& rightDisparityMap, 
+    int threshold, unsigned width, unsigned height) {
 
-    int height = leftDisparityMap.size();
-    int width = leftDisparityMap[0].size();
+    std::vector<unsigned char> crossCheckedDisparityMap(height * (width * 4), 0);
 
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            int leftDisparity = leftDisparityMap[y][x];
-            int rightDisparity = rightDisparityMap[y][x];
+    for (unsigned y = 0; y < height; ++y) {
+        for (unsigned x = 0; x < width; ++x) {
+            char leftDisparity = leftDisparityMap[4 * (y * width + x)];
+            char rightDisparity = rightDisparityMap[4 * (y * width + x)];
 
             // Check if the disparities are consistent within the threshold
             if (std::abs(leftDisparity - rightDisparity) <= threshold) {
                 // Use the average of the disparities as the consolidated value
-                consolidatedDisparityMap[y][x] = (leftDisparity + rightDisparity) / 2;
+                crossCheckedDisparityMap[4 * (y * width + x)] = (leftDisparity + rightDisparity) / 2;
             } else {
                 // If the disparities are not consistent, set the consolidated disparity to zero
-                consolidatedDisparityMap[y][x] = 0;
+                crossCheckedDisparityMap[4 * (y * width + x)] = 0;
             }
         }
     }
+    return crossCheckedDisparityMap;
 }
 
 // Save the output image after applying CrossCheck post processing and submit it along with the report
-
+*/
+/*
 void occlusionFill(const std::vector<std::vector<int>>& inputDisparityMap, std::vector<std::vector<int>>& outputDisparityMap) {
     int height = inputDisparityMap.size();
     int width = inputDisparityMap[0].size();
@@ -155,16 +215,16 @@ std::string extractValue(const std::string& line, const std::string& key) {
     return ""; // Return empty string if key not found or '=' not found
 }
 
-int searchFileForKeyValuePair(const std::string& keyToFind) {
+unsigned searchFileForKeyValuePair(const std::string& keyToFind) {
     std::ifstream calibFile("calib.txt");
     std::string line;
-    int foundValue = -1; // Default value if key is not found
+    unsigned foundValue = 0; // Default value if key is not found
 
     if (calibFile.is_open()) {
         while (std::getline(calibFile, line)) {
             std::string value = extractValue(line, keyToFind);
             if (!value.empty()) {
-                foundValue = std::stoi(value);
+                foundValue = (unsigned)std::stoi(value);
                 break;
             }
         }
@@ -177,10 +237,10 @@ int searchFileForKeyValuePair(const std::string& keyToFind) {
     return foundValue;
 }
 
-int findValueForKey(const std::string& keyToFind) {
+unsigned findValueForKey(const std::string& keyToFind) {
     unsigned foundValue = searchFileForKeyValuePair(keyToFind);
 
-    if (foundValue == -1) {
+    if (foundValue == 0) {
         std::cout << "Key '" << keyToFind << "' not found in calib.txt." << std::endl;
         exit(1);
     }
@@ -263,7 +323,7 @@ int main() {
     profileWriteImage("writing right grayscale image", WriteImage, rightGrayFilename.c_str(), rightGrayImage, width, height);
 
     std::string maxDispKey = "ndisp";
-    int origMaxDisp = findValueForKey(maxDispKey);
+    unsigned origMaxDisp = findValueForKey(maxDispKey);
     unsigned maxDisp = origMaxDisp / downscaleFactor;
 
     // winSize can be edited by changing the value from calib.txt
@@ -271,31 +331,34 @@ int main() {
     unsigned winSize = findValueForKey(winSizeKey);
 
     // Call the depth estimation function
-    std::vector<unsigned char> leftToRightDisparityMap = depthEstimation(
+    std::pair<std::vector<unsigned char>, std::vector<unsigned char>> disparityMaps = depthEstimation(
         leftGrayImage, rightGrayImage, width, height, maxDisp, winSize);
-    /*std::vector<std::vector<int>> rightToLeftDisparityMap = depthEstimation(
-        rightGrayImage, leftGrayImage, std::ref(width), std::ref(height), maxDisp, winSize);
-    */
+    std::vector<unsigned char>& leftDisparityMap = disparityMaps.first;
+    std::vector<unsigned char>& rightDisparityMap = disparityMaps.second;
+    
     std::cout << "Normalize disparityMap pixel values (range 0-255)." << std::endl;
-    for (auto& pixel : leftToRightDisparityMap) {
+    for (auto& pixel : leftDisparityMap) {
             pixel = pixel * origMaxDisp / maxDisp;
-            // pixel = normalizedPixel;
     }
-    /*
-    for (auto& row : rightToLeftDisparityMap) {
-        for (auto& pixel : row) {
-            float normalizedPixel = pixel % maxDisp * origMaxDisp;
-            pixel = static_cast<int>(normalizedPixel);
-        }
+    for (auto& pixel : rightDisparityMap) {
+            pixel = pixel * origMaxDisp / maxDisp;
     }
-    */
 
     std::cout << "Writing the disparityMaps to files." << std::endl;
     std::string depthMapFilename1 = workspaceFolder + "/outputs/task3_outputs/depthmap1.png";
-    // std::string depthMapFilename2 = workspaceFolder + "/outputs/task3_outputs/depthmap2.png";
+    std::string depthMapFilename2 = workspaceFolder + "/outputs/task3_outputs/depthmap2.png";
     profileWriteImage("writing disparityMap1 to image", WriteImage, depthMapFilename1.c_str(), 
-        leftToRightDisparityMap, std::ref(width), std::ref(height));
-    // profileWriteImage("writing disparityMap2 to image", WriteImage, depthMapFilename2.c_str(), 
-    //     disparityMapVectorRight, std::ref(width), std::ref(height));
+        leftDisparityMap, std::ref(width), std::ref(height));
+    profileWriteImage("writing disparityMap2 to image", WriteImage, depthMapFilename2.c_str(), 
+        rightDisparityMap, std::ref(width), std::ref(height));
+    /*
+    int threshold = 8;
+
+    std::vector<unsigned char> crossCheckedDisparityMap = crossCheck(
+        leftDisparityMap, rightDisparityMap, threshold, width, height);
+    std::string crossCheckFileName = workspaceFolder + "/outputs/task3_outputs/crosscheck.png";
+    profileWriteImage("writing cross checked image", WriteImage, crossCheckFileName.c_str(), 
+        crossCheckedDisparityMap, std::ref(width), std::ref(height));
+    */
     return 0;
 }
